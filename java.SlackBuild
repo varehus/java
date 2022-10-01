@@ -1,0 +1,78 @@
+#!/bin/sh
+
+# Copyright 2008, 2009, 2010, 2011, 2012  Patrick J. Volkerding, Sebeka, MN, USA
+# All rights reserved.
+#
+# Redistribution and use of this script, with or without modification, is
+# permitted provided that the following conditions are met:
+#
+# 1. Redistributions of this script must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#  EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+CWD=$(pwd)
+TMP=${TMP:-/tmp}
+PKG=$TMP/package-java
+rm -rf $PKG
+mkdir -p $TMP $PKG
+
+SOURCETGZ="$CWD/j??-*.tar.gz"
+PKGNAM=$(basename $SOURCETGZ | cut -f 1 -d -)
+VERSION=$(basename $SOURCETGZ | cut -f 2 -d - | cut -f 1 -d _)
+DVER=$(tar tf $SOURCETGZ | head -n 1 | cut -f 2 -d $(echo $PKGNAM | cut -b 3) | cut -f 1 -d /)
+JAVA_ARCH=$(basename $SOURCETGZ | cut -f 3 -d - | cut -f 1 -d _)
+if [ "$JAVA_ARCH" = "x64" ]; then
+  ARCH=x86_64
+  LIBDIRSUFFIX="64"
+else
+  ARCH=i586
+  LIBDIRSUFFIX=""
+fi
+BUILD=${BUILD:-1}
+
+cd $PKG
+mkdir -p usr/lib${LIBDIRSUFFIX}
+cd usr/lib${LIBDIRSUFFIX}
+tar xf $SOURCETGZ || exit 1
+mkdir -p $PKG/etc/profile.d
+for file in $(ls $CWD/profile.d/${PKGNAM}*) ; do
+  cat $file | sed -e "s#lib/java#lib${LIBDIRSUFFIX}/java#" \
+    > $PKG/etc/profile.d/$(basename $file)
+done
+chown -R root.root $PKG
+find $PKG \
+  \( -perm 777 -o -perm 775 -o -perm 711 -o -perm 555 -o -perm 511 \) \
+  -exec chmod 755 {} \; -o \
+  \( -perm 666 -o -perm 664 -o -perm 600 -o -perm 444 -o -perm 440 -o -perm 400 \) \
+  -exec chmod 644 {} \;
+chmod 0755 $PKG/etc/profile.d/*
+( cd $PKG/usr/lib${LIBDIRSUFFIX}
+  mv ${PKGNAM}${DVER} java || exit 1
+  ln -sf java ${PKGNAM}${DVER}
+) || exit 1
+
+cd $PKG/usr/lib${LIBDIRSUFFIX}
+ln -sf java/lib/server/libjsig.so .
+ln -sf java/lib/server/libjvm.so .
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc.${PKGNAM} > $PKG/install/slack-desc
+
+# Java may not expect compressed manpages, so don't compress them.
+
+mkdir -p $PKG/install
+cat $CWD/slack-desc > $PKG/install/slack-desc
+
+cd $PKG
+rm -f $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz
+/sbin/makepkg -l y -c n $TMP/$PKGNAM-$VERSION-$ARCH-$BUILD.txz

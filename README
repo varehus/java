@@ -1,0 +1,9 @@
+This is a SlackBuild that will repackage JDK NFTC release into a
+package that can be easily installed, upgraded, or removed using
+Slackware's native package management tools.
+
+https://mirrors.slackware.com/slackware/slackware64-15.0/extra/java/
+
+Modified 2022 for JDK 19.
+
+https://java.com/freeuselicense
